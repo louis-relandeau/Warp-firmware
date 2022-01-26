@@ -9,6 +9,8 @@ warp:
 	mkdir -p build/ksdk1.1/work/demos/Warp/armgcc/Warp
 	cp -r tools/sdk/ksdk1.1.0/*					build/ksdk1.1/work
 	cp src/boot/ksdk1.1.0/SEGGER*					build/ksdk1.1/work/demos/Warp/src/
+	cp src/boot/ksdk1.1.0/devSSD1331.*				build/ksdk1.1/work/demos/Warp/src/
+	cp src/boot/ksdk1.1.0/INA219.*					build/ksdk1.1/work/demos/Warp/src/
 	cp src/boot/ksdk1.1.0/config.h					build/ksdk1.1/work/demos/Warp/src/
 	cp src/boot/ksdk1.1.0/boot.c					build/ksdk1.1/work/demos/Warp/src/
 	cp src/boot/ksdk1.1.0/errstrs*					build/ksdk1.1/work/demos/Warp/src/

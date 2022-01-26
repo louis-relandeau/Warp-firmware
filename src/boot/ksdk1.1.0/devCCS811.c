@@ -246,7 +246,7 @@ readSensorRegisterCCS811(uint8_t deviceRegister, int numberOfBytes)
 	return kWarpStatusOK;
 }
 
-void
+int
 printSensorDataCCS811(bool hexModeFlag)
 {
 	uint16_t	readSensorRegisterValueLSB;
@@ -260,6 +260,7 @@ printSensorDataCCS811(bool hexModeFlag)
 	i2cReadStatus	= readSensorRegisterCCS811(kWarpSensorOutputRegisterCCS811ALG_DATA, 4 /* numberOfBytes */);
 	equivalentCO2	= (deviceCCS811State.i2cBuffer[0] << 8) | deviceCCS811State.i2cBuffer[1];
 	TVOC		= (deviceCCS811State.i2cBuffer[2] << 8) | deviceCCS811State.i2cBuffer[3];
+
 	if (i2cReadStatus != kWarpStatusOK)
 	{
 		warpPrint(" ----, ----,");
@@ -290,6 +291,7 @@ printSensorDataCCS811(bool hexModeFlag)
 	readSensorRegisterValueCombined =
 						((readSensorRegisterValueLSB & 0x03) << 8) |
 						(readSensorRegisterValueMSB & 0xFF);
+	
 	if (i2cReadStatus != kWarpStatusOK)
 	{
 		warpPrint(" ----,");
@@ -312,7 +314,7 @@ printSensorDataCCS811(bool hexModeFlag)
 	readSensorRegisterValueLSB = deviceCCS811State.i2cBuffer[0];
 	readSensorRegisterValueMSB = deviceCCS811State.i2cBuffer[1];
 	readSensorRegisterValueCombined = ((readSensorRegisterValueMSB) << 8) | (readSensorRegisterValueLSB);
-
+	
 	if (i2cReadStatus != kWarpStatusOK)
 	{
 		warpPrint(" ----,");
@@ -334,7 +336,7 @@ printSensorDataCCS811(bool hexModeFlag)
 	readSensorRegisterValueLSB = deviceCCS811State.i2cBuffer[2];
 	readSensorRegisterValueMSB = deviceCCS811State.i2cBuffer[3];
 	readSensorRegisterValueCombined = ((readSensorRegisterValueMSB) << 8) | (readSensorRegisterValueLSB);
-
+	
 	if (i2cReadStatus != kWarpStatusOK)
 	{
 		warpPrint(" ----,");
@@ -350,4 +352,5 @@ printSensorDataCCS811(bool hexModeFlag)
 			warpPrint(" %d,", readSensorRegisterValueCombined);
 		}
 	}
+	return equivalentCO2;
 }

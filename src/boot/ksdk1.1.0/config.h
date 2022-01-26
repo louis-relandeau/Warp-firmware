@@ -52,7 +52,7 @@
  *	build variant above, we currently require users wanting to build for the
  *	KL03 to manually set this here.
  */
-#define		WARP_BUILD_ENABLE_FRDMKL03			0
+#define		WARP_BUILD_ENABLE_FRDMKL03			1
 
 /*
  *	Force the required configuration if WARP_BUILD_ENABLE_GLAUX_VARIANT is set
@@ -74,7 +74,7 @@
 	#define		WARP_BUILD_ENABLE_DEVL3GD20H		0
 	#define		WARP_BUILD_ENABLE_DEVLPS25H		0
 	#define		WARP_BUILD_ENABLE_DEVMAG3110		0
-	#define		WARP_BUILD_ENABLE_DEVMMA8451Q		0
+	#define		WARP_BUILD_ENABLE_DEVMMA8451Q		1
 	#define		WARP_BUILD_ENABLE_DEVRV8803C7		1
 	#define		WARP_BUILD_ENABLE_DEVSI4705		0
 	#define		WARP_BUILD_ENABLE_DEVSI7021		0
@@ -87,7 +87,7 @@
 	#define		WARP_BUILD_ENABLE_DEVBGX		0
 	#define		WARP_BUILD_ENABLE_DEVBME680		0
 	#define		WARP_BUILD_ENABLE_DEVBMX055		0
-	#define		WARP_BUILD_ENABLE_DEVCCS811		0
+	#define		WARP_BUILD_ENABLE_DEVCCS811		1
 	#define		WARP_BUILD_ENABLE_DEVHDC1000		0
 	#define		WARP_BUILD_ENABLE_DEVIS25xP		0
 	#define		WARP_BUILD_ENABLE_DEVISL23415		0
@@ -97,6 +97,7 @@
 	#define		WARP_BUILD_ENABLE_DEVLPS25H		0
 	#define		WARP_BUILD_ENABLE_DEVMAG3110		0
 	#define		WARP_BUILD_ENABLE_DEVMMA8451Q		1
+	#define		WARP_BUILD_ENABLE_INA219			1
 	#define		WARP_BUILD_ENABLE_DEVRV8803C7		0
 	#define		WARP_BUILD_ENABLE_DEVSI4705		0
 	#define		WARP_BUILD_ENABLE_DEVSI7021		0
@@ -121,7 +122,7 @@
 	#define		WARP_BUILD_ENABLE_DEVL3GD20H		0
 	#define		WARP_BUILD_ENABLE_DEVLPS25H		0
 	#define		WARP_BUILD_ENABLE_DEVMAG3110		0
-	#define		WARP_BUILD_ENABLE_DEVMMA8451Q		0
+	#define		WARP_BUILD_ENABLE_DEVMMA8451Q		1
 	#define		WARP_BUILD_ENABLE_DEVRV8803C7		0
 	#define		WARP_BUILD_ENABLE_DEVSI4705		0
 	#define		WARP_BUILD_ENABLE_DEVSI7021		0
@@ -166,6 +167,7 @@ typedef enum
 	kWarpDefaultSupplyVoltageMillivoltsBMX055gyro		= 1800,
 	kWarpDefaultSupplyVoltageMillivoltsBMX055mag		= 1800,
 	kWarpDefaultSupplyVoltageMillivoltsMMA8451Q		= 1800,
+	kWarpDefaultSupplyVoltageMillivoltsINA219		= 1800,
 	kWarpDefaultSupplyVoltageMillivoltsLPS25H		= 1800,
 	kWarpDefaultSupplyVoltageMillivoltsHDC1000		= 1800,
 	kWarpDefaultSupplyVoltageMillivoltsMAG3110		= 1800,

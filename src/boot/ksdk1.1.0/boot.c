@@ -61,12 +61,12 @@
 #include "errstrs.h"
 #include "gpio_pins.h"
 #include "SEGGER_RTT.h"
+#include "devSSD1331.h"
 
 
 #define							kWarpConstantStringI2cFailure		"\rI2C failed, reg 0x%02x, code %d\n"
 #define							kWarpConstantStringErrorInvalidVoltage	"\rInvalid supply voltage [%d] mV!"
 #define							kWarpConstantStringErrorSanity		"\rSanity check failed!"
-
 
 #if (WARP_BUILD_ENABLE_DEVADXL362)
 	#include "devADXL362.h"
@@ -103,6 +103,11 @@
 #if (WARP_BUILD_ENABLE_DEVMMA8451Q)
 	#include "devMMA8451Q.h"
 	volatile WarpI2CDeviceState			deviceMMA8451QState;
+#endif
+
+#if (WARP_BUILD_ENABLE_INA219)
+	#include "INA219.h"
+	volatile WarpI2CDeviceState			deviceINA219State;
 #endif
 
 #if (WARP_BUILD_ENABLE_DEVLPS25H)
@@ -148,7 +153,7 @@
 
 #if (WARP_BUILD_ENABLE_DEVCCS811)
 	#include "devCCS811.h"
-	olatile WarpI2CDeviceState			deviceCCS811State;
+	volatile WarpI2CDeviceState			deviceCCS811State;
 #endif
 
 #if (WARP_BUILD_ENABLE_DEVAMG8834)
@@ -220,6 +225,7 @@ static void						powerupAllSensors(void);
 static uint8_t						readHexByte(void);
 static int						read4digits(void);
 static void						printAllSensors(bool printHeadersAndCalibration, bool hexModeFlag, int menuDelayBetweenEachRun, bool loopForever);
+static void						printCCS811(bool printHeadersAndCalibration, bool hexModeFlag, int menuDelayBetweenEachRun, bool loopForever);
 
 /*
  *	TODO: change the following to take byte arrays
@@ -1606,7 +1612,11 @@ main(void)
 
 	#if (WARP_BUILD_ENABLE_DEVMMA8451Q)
 //		initMMA8451Q(	0x1C	/* i2cAddress */,	&deviceMMA8451QState,		kWarpDefaultSupplyVoltageMillivoltsMMA8451Q	);
-		initMMA8451Q(	0x1C	/* i2cAddress */,		kWarpDefaultSupplyVoltageMillivoltsMMA8451Q	);
+		initMMA8451Q(	0x1D	/* i2cAddress */,		kWarpDefaultSupplyVoltageMillivoltsMMA8451Q	);
+	#endif
+
+	#if (WARP_BUILD_ENABLE_INA219)
+		initINA219(	0x40	/* i2cAddress */,		kWarpDefaultSupplyVoltageMillivoltsINA219	);
 	#endif
 
 	#if (WARP_BUILD_ENABLE_DEVLPS25H)
@@ -1643,7 +1653,8 @@ main(void)
 	#endif
 
 	#if (WARP_BUILD_ENABLE_DEVCCS811)
-		initCCS811(	0x5A	/* i2cAddress */,	&deviceCCS811State,		kWarpDefaultSupplyVoltageMillivoltsCCS811	);
+		//initCCS811(	0x5A	/* i2cAddress */,	&deviceCCS811State,		kWarpDefaultSupplyVoltageMillivoltsCCS811	);
+		initCCS811(0x5A, kWarpDefaultSupplyVoltageMillivoltsCCS811);
 	#endif
 
 	#if (WARP_BUILD_ENABLE_DEVAMG8834)
@@ -1657,6 +1668,7 @@ main(void)
 	#if (WARP_BUILD_ENABLE_DEVAS7263)
 		initAS7263(	0x49	/* i2cAddress */,	&deviceAS7263State,		kWarpDefaultSupplyVoltageMillivoltsAS7263	);
 	#endif
+
 
 	#if (WARP_BUILD_ENABLE_DEVRV8803C7)
 		initRV8803C7(	0x32	/* i2cAddress */,					kWarpDefaultSupplyVoltageMillivoltsRV8803C7	);
@@ -2017,6 +2029,9 @@ main(void)
 		}
 	#endif
 
+        // Warp menu loop
+		devSSD1331init();
+
 	while (1)
 	{
 		/*
@@ -2042,6 +2057,8 @@ main(void)
 		warpPrint("\r- 'm': send repeated byte on SPI.\n");
 		warpPrint("\r- 'n': enable sensor supply voltage.\n");
 		warpPrint("\r- 'o': disable sensor supply voltage.\n");
+		warpPrint("\r- 'q': print current from INA219.\n");
+		warpPrint("\r- 'v': print CCS811 raw data. \n");
 		warpPrint("\r- 'p': switch to VLPR mode.\n");
 		warpPrint("\r- 'r': switch to RUN mode.\n");
 		warpPrint("\r- 's': power up all sensors.\n");
@@ -2062,6 +2079,7 @@ main(void)
 		#endif
 
 		warpPrint("\r- 'x': disable SWD and spin for 10 secs.\n");
+		warpPrint("\r- 'y': perpetually dump CCS811 and INA219 data only.\n");
 		warpPrint("\r- 'z': perpetually dump all sensor data.\n");
 
 		warpPrint("\rEnter selection> ");
@@ -2097,6 +2115,13 @@ main(void)
 				#else
 					warpPrint("\r\t- '5' MMA8451Q			(0x00--0x31): 1.95V -- 3.6V (compiled out) \n");
 				#endif
+
+				#if (WARP_BUILD_ENABLE_INA219)
+					warpPrint("\r\t- 'l' INA219			(0x00--0x40): 3.0 -- 5.5V\n");
+				#else
+					warpPrint("\r\t- 'l' INA219			(0x00--0x40): 3.0 -- 5.5V (compiled out)\n");
+				#endif
+
 
 				#if (WARP_BUILD_ENABLE_DEVLPS25H)
 					warpPrint("\r\t- '6' LPS25H			(0x08--0x24): 1.7V -- 3.6V\n");
@@ -2170,6 +2195,8 @@ main(void)
 					warpPrint("\r\t- 'k' AS7263			(0x00--0x2B): 2.7V -- 3.6V (compiled out) \n");
 				#endif
 
+		
+
 				warpPrint("\r\tEnter selection> ");
 				key = warpWaitKey();
 
@@ -2216,6 +2243,15 @@ main(void)
 						{
 							menuTargetSensor = kWarpSensorMMA8451Q;
 							menuI2cDevice = &deviceMMA8451QState;
+							break;
+						}
+					#endif
+
+					#if (WARP_BUILD_ENABLE_INA219)
+						case 'l':
+						{
+							menuTargetSensor = kWarpSensorINA219;
+							menuI2cDevice = &deviceINA219State;
 							break;
 						}
 					#endif
@@ -2319,6 +2355,7 @@ main(void)
 						break;
 					}
 #endif
+
 					default:
 					{
 						warpPrint("\r\tInvalid selection '%c' !\n", key);
@@ -2618,6 +2655,34 @@ main(void)
 				break;
 			}
 
+			case 'q':
+			{
+				bool hexModeFlag;
+
+				for (int i = 1; i < 10000; ++i)
+				{
+					// warpPrint("Current_raw: ");
+					printSensorDataINA219(hexModeFlag);
+					warpPrint("\n");
+				}
+
+				break;
+			}
+
+			case 'v':
+			{
+				bool hexModeFlag;
+
+				for (int i = 1; i < 100; ++i)
+				{
+					warpPrint("raw_data: ");
+					printSensorDataCCS811(hexModeFlag);
+					warpPrint("\n");
+				}
+
+				break;
+			}
+
 			/*
 			 *	Switch to RUN
 			 */
@@ -2694,6 +2759,27 @@ main(void)
 			/*
 			 *	Dump all the sensor data in one go
 			 */
+			case 'y':
+			{
+				bool		hexModeFlag;
+
+				warpPrint("\r\n\tHex or converted mode? ('h' or 'c')> ");
+				key = warpWaitKey();
+				hexModeFlag = (key == 'h' ? 1 : 0);
+
+				warpPrint("\r\n\tSet the time delay between each run in milliseconds (e.g., '1234')> ");
+				uint16_t	menuDelayBetweenEachRun = read4digits();
+				warpPrint("\r\n\tDelay between read batches set to %d milliseconds.\n\n", menuDelayBetweenEachRun);
+				printCCS811(true /* printHeadersAndCalibration */, hexModeFlag, menuDelayBetweenEachRun, true /* loopForever */);
+
+				/*
+				 *	Not reached (printAllSensors() does not return)
+				 */
+				warpDisableI2Cpins();
+
+				break;
+			}
+
 			case 'z':
 			{
 				bool		hexModeFlag;
@@ -2795,6 +2881,12 @@ printAllSensors(bool printHeadersAndCalibration, bool hexModeFlag, int menuDelay
 					0x01/* Normal read 8bit, 800Hz, normal, active mode */
 					);
 	#endif
+
+		// TODO_INA219
+	#if (WARP_BUILD_ENABLE_INA219)
+	numberOfConfigErrors += configureSensorINA219();
+	#endif
+
 	#if (WARP_BUILD_ENABLE_DEVMAG3110)
 	numberOfConfigErrors += configureSensorMAG3110(	0x00,/*	Payload: DR 000, OS 00, 80Hz, ADC 1280, Full 16bit, standby mode to set up register*/
 					0xA0,/*	Payload: AUTO_MRST_EN enable, RAW value without offset */
@@ -2840,7 +2932,7 @@ printAllSensors(bool printHeadersAndCalibration, bool hexModeFlag, int menuDelay
 	uint8_t		payloadCCS811[1];
 	payloadCCS811[0] = 0b01000000;/* Constant power, measurement every 250ms */
 	numberOfConfigErrors += configureSensorCCS811(payloadCCS811,
-					);
+					0x2710);
 	#endif
 	#if (WARP_BUILD_ENABLE_DEVBMX055)
 	numberOfConfigErrors += configureSensorBMX055accel(0b00000011,/* Payload:+-2g range */
@@ -2874,6 +2966,10 @@ printAllSensors(bool printHeadersAndCalibration, bool hexModeFlag, int menuDelay
 
 		#if (WARP_BUILD_ENABLE_DEVMMA8451Q)
 			warpPrint(" MMA8451 x, MMA8451 y, MMA8451 z,");
+		#endif
+
+		#if (WARP_BUILD_ENABLE_INA219)
+			warpPrint(" INA219 I(current),");
 		#endif
 
 		#if (WARP_BUILD_ENABLE_DEVMAG3110)
@@ -2922,6 +3018,10 @@ printAllSensors(bool printHeadersAndCalibration, bool hexModeFlag, int menuDelay
 			printSensorDataMMA8451Q(hexModeFlag);
 		#endif
 
+		#if (WARP_BUILD_ENABLE_INA219)
+			printSensorDataINA219(hexModeFlag);
+		#endif
+
 		#if (WARP_BUILD_ENABLE_DEVMAG3110)
 			printSensorDataMAG3110(hexModeFlag);
 		#endif
@@ -2956,6 +3056,81 @@ printAllSensors(bool printHeadersAndCalibration, bool hexModeFlag, int menuDelay
 		}
 
 		readingCount++;
+	} while (loopForever);
+}
+
+void
+printCCS811(bool printHeadersAndCalibration, bool hexModeFlag, int menuDelayBetweenEachRun, bool loopForever)
+{
+	/*
+	 *	A 32-bit counter gives us > 2 years of before it wraps, even if sampling at 60fps
+	 */
+	uint32_t	readingCount = 0;
+	uint32_t	numberOfConfigErrors = 0;
+	uint32_t    eco2 = 0;
+
+	// #if (WARP_BUILD_ENABLE_INA219)
+	// numberOfConfigErrors += configureSensorINA219();
+	// #endif
+
+	#if (WARP_BUILD_ENABLE_DEVCCS811)
+	uint8_t		payloadCCS811[1];
+	payloadCCS811[0] = 0b01000000;/* Constant power, measurement every 250ms */
+	numberOfConfigErrors += configureSensorCCS811(payloadCCS811,
+					0x2710);
+	#endif
+
+	if (printHeadersAndCalibration)
+	{
+		warpPrint("Measurement number, RTC->TSR, RTC->TPR,\t\t"); // TSR is time seconds register
+
+		// #if (WARP_BUILD_ENABLE_INA219)
+		// 	warpPrint(" INA219 I(current),");
+		// #endif
+
+		
+		#if (WARP_BUILD_ENABLE_DEVCCS811)
+			warpPrint(" CCS811 ECO2, CCS811 TVOC, CCS811 RAW ADC value,");
+		#endif
+
+		warpPrint(" RTC->TSR, RTC->TPR, # Config Errors");
+		warpPrint("\n\n");
+	}
+
+	do
+	{
+		warpPrint("%12u, %12d, %6d,\t\t", readingCount, RTC->TSR, RTC->TPR);
+
+		// #if (WARP_BUILD_ENABLE_INA219)
+		// 	printSensorDataINA219(hexModeFlag);
+		// #endif
+
+	
+		#if (WARP_BUILD_ENABLE_DEVCCS811)
+			eco2 = printSensorDataCCS811(hexModeFlag);
+		#endif
+
+		warpPrint(" %12d, %6d, %2u", RTC->TSR, RTC->TPR, numberOfConfigErrors);
+
+		devSSD1331update(eco2);
+
+		if (menuDelayBetweenEachRun > 0)
+		{
+			OSA_TimeDelay(menuDelayBetweenEachRun);
+		}
+
+		readingCount++;
+
+		// bool hexModeFlag;
+
+		// for (int i = 1; i < 1000; ++i)
+		// {
+		// 	// warpPrint("Current_raw: ");
+		// 	printSensorDataINA219(hexModeFlag);
+		// warpPrint(",");
+		// }
+
+		warpPrint("\n");
 	} while (loopForever);
 }
 
@@ -3005,7 +3180,7 @@ loopForSensor(	const char *  tagString,
 	{
 		for (int i = 0; i < readCount; i++) for (int j = 0; j < chunkReadsPerAddress; j++)
 		{
-			status = readSensorRegisterFunction(address+j, 1 /* numberOfBytes */);
+			status = readSensorRegisterFunction(address+j, 2 /* numberOfBytes */);
 			if (status == kWarpStatusOK)
 			{
 				nSuccesses++;
@@ -3040,9 +3215,10 @@ loopForSensor(	const char *  tagString,
 
 					if (chatty)
 					{
-						warpPrint("\r\t0x%02x --> 0x%02x\n",
+						warpPrint("\r\t0x%02x --> 0x%02x%02x\n",
 							address+j,
-							i2cDeviceState->i2cBuffer[0]);
+							i2cDeviceState->i2cBuffer[0],
+							i2cDeviceState->i2cBuffer[1]);
 					}
 				}
 			}
@@ -3159,6 +3335,35 @@ repeatRegisterReadForDeviceAndAddress(WarpSensorDevice warpSensorDevice, uint8_t
 						);
 			#else
 				warpPrint("\r\n\tMMA8451Q Read Aborted. Device Disabled :(");
+			#endif
+
+			break;
+		}
+
+		case kWarpSensorINA219:
+		{
+			/*
+			 *	INA219: VDD 3.0--5.5
+			 */
+			#if (WARP_BUILD_ENABLE_INA219)
+				loopForSensor(	"\r\nINA219:\n\r",		/*	tagString			*/
+						&readSensorRegisterINA219,	/*	readSensorRegisterFunction	*/
+						&deviceINA219State,		/*	i2cDeviceState			*/
+						NULL,				/*	spiDeviceState			*/
+						baseAddress,			/*	baseAddress			*/
+						0x01,				/*	minAddress			*/
+						0x05,				/*	maxAddress			*/
+						repetitionsPerAddress,				/*	repetitionsPerAddress		*/
+						chunkReadsPerAddress,		/*	chunkReadsPerAddress		*/
+						spinDelay,			/*	spinDelay			*/
+						autoIncrement,			/*	autoIncrement			*/
+						sssupplyMillivolts,		/*	sssupplyMillivolts		*/
+						referenceByte,			/*	referenceByte			*/
+						adaptiveSssupplyMaxMillivolts,	/*	adaptiveSssupplyMaxMillivolts	*/
+						chatty				/*	chatty				*/
+						);
+			#else
+				warpPrint("\r\n\tINA219 Read Aborted. Device Disabled :(");
 			#endif
 
 			break;
